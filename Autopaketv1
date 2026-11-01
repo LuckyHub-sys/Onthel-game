@@ -1,0 +1,287 @@
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local locations = workspace:WaitForChild("JobLocations")
+local office = locations:WaitForChild("KantorKurir")
+local mainPart = office:WaitForChild("MainPart")
+local deliveryPoints = locations:WaitForChild("DeliveryPoints")
+
+local running = false
+local minimized = false
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "LAutoPaket"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(280, 185)
+frame.Position = UDim2.new(0.5, -140, 0.5, -92)
+frame.BackgroundColor3 = Color3.fromRGB(19, 21, 28)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.fromRGB(65, 75, 100)
+outline.Parent = frame
+
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 42)
+header.BackgroundColor3 = Color3.fromRGB(30, 33, 43)
+header.BorderSizePixel = 0
+header.Parent = frame
+
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -55, 1, 0)
+title.Position = UDim2.fromOffset(13, 0)
+title.BackgroundTransparency = 1
+title.Text = "L  |  AUTO PAKET"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = header
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.fromOffset(32, 30)
+close.Position = UDim2.new(1, -38, 0, 6)
+close.BackgroundColor3 = Color3.fromRGB(55, 58, 70)
+close.Text = "X"
+close.TextColor3 = Color3.new(1, 1, 1)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 14
+close.Parent = header
+
+Instance.new("UICorner", close).CornerRadius = UDim.new(0, 7)
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -24, 0, 35)
+status.Position = UDim2.fromOffset(12, 52)
+status.BackgroundTransparency = 1
+status.Text = "Status: OFF"
+status.TextColor3 = Color3.fromRGB(180, 185, 200)
+status.Font = Enum.Font.Gotham
+status.TextSize = 13
+status.Parent = frame
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -24, 0, 43)
+toggle.Position = UDim2.fromOffset(12, 95)
+toggle.BackgroundColor3 = Color3.fromRGB(45, 48, 60)
+toggle.Text = "AUTO PAKET : OFF"
+toggle.TextColor3 = Color3.new(1, 1, 1)
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 14
+toggle.Parent = frame
+
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 8)
+
+local mini = Instance.new("TextButton")
+mini.Size = UDim2.fromOffset(48, 48)
+mini.Position = UDim2.new(0, 20, 0.5, -24)
+mini.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+mini.Text = "L"
+mini.TextColor3 = Color3.new(1, 1, 1)
+mini.Font = Enum.Font.GothamBold
+mini.TextSize = 22
+mini.Visible = false
+mini.Parent = gui
+
+Instance.new("UICorner", mini).CornerRadius = UDim.new(1, 0)
+
+local function makeDraggable(object, handle)
+    local dragging = false
+    local startPos
+    local startInput
+    local dragInput
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startInput = input.Position
+            startPos = object.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input == dragInput or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - startInput
+            object.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+makeDraggable(frame, header)
+makeDraggable(mini, mini)
+
+close.MouseButton1Click:Connect(function()
+    frame.Visible = false
+    mini.Visible = true
+end)
+
+mini.MouseButton1Click:Connect(function()
+    frame.Visible = true
+    mini.Visible = false
+end)
+
+local function setStatus(message)
+    status.Text = "Status: " .. message
+end
+
+local function getRoot()
+    local character = player.Character
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function teleport(part)
+    if not part or not part:IsA("BasePart") then
+        return false
+    end
+
+    local character = player.Character
+    if not character then return false end
+
+    character:PivotTo(part.CFrame * CFrame.new(0, 0, -3))
+    task.wait(0.5)
+
+    return true
+end
+
+local function holdPrompt(prompt)
+    if not running or not prompt or not prompt.Enabled then
+        return false
+    end
+
+    if not prompt:IsA("ProximityPrompt") then
+        return false
+    end
+
+    prompt:InputHoldBegin()
+    task.wait(3)
+    prompt:InputHoldEnd()
+
+    task.wait(0.7)
+    return running
+end
+
+local function findActiveDelivery()
+    for _, house in ipairs(deliveryPoints:GetChildren()) do
+        local door = house:FindFirstChild("Door")
+
+        if door then
+            local prompt = door:FindFirstChild("DeliverPrompt")
+
+            if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                return house, door, prompt
+            end
+        end
+    end
+
+    return nil
+end
+
+local function runAuto()
+    while running do
+        setStatus("Menuju kantor...")
+
+        teleport(mainPart)
+
+        if not running then break end
+
+        local pickup = mainPart:FindFirstChild("Ambil Paket")
+
+        if not pickup or not pickup:IsA("ProximityPrompt") then
+            setStatus("Prompt kantor tidak ditemukan")
+            break
+        end
+
+        setStatus("Mengambil paket...")
+        holdPrompt(pickup)
+
+        if not running then break end
+
+        setStatus("Mencari tujuan...")
+
+        local house, door, prompt
+
+        for i = 1, 100 do
+            if not running then break end
+
+            house, door, prompt = findActiveDelivery()
+
+            if house then break end
+
+            task.wait(0.2)
+        end
+
+        if not running then break end
+
+        if not house then
+            setStatus("Tujuan tidak ditemukan")
+            break
+        end
+
+        setStatus("Menuju " .. house.Name .. "...")
+
+        teleport(door)
+
+        if not running then break end
+
+        setStatus("Mengantar: " .. house.Name)
+
+        holdPrompt(prompt)
+
+        if not running then break end
+
+        setStatus("Paket selesai!")
+
+        task.wait(1)
+    end
+
+    running = false
+    toggle.Text = "AUTO PAKET : OFF"
+    toggle.BackgroundColor3 = Color3.fromRGB(45, 48, 60)
+
+    if status.Text ~= "Status: Tujuan tidak ditemukan"
+    and status.Text ~= "Status: Prompt kantor tidak ditemukan" then
+        setStatus("OFF")
+    end
+end
+
+toggle.MouseButton1Click:Connect(function()
+    if running then
+        running = false
+        setStatus("Menghentikan...")
+    else
+        running = true
+        toggle.Text = "AUTO PAKET : ON"
+        toggle.BackgroundColor3 = Color3.fromRGB(35, 120, 75)
+
+        task.spawn(runAuto)
+    end
+end)
